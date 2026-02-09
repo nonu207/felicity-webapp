@@ -1,27 +1,37 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
-// Connect to database
-connectDB();
+// Load environment variables
+dotenv.config();
 
+// Create Express app
 const app = express();
+
+// Connect to Database
+connectDB();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-// app.use(express.urlencoded({ extended: false }));
 
-// Routes
+// Import routes
+const authRoutes = require('./routes/auth');
 
-const authRoutes = require('./routes/auth'); 
-app.use('./api/auth', authRoutes); 
-// Basic route for testing
-app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to MERN API' });
+// Use routes
+app.use('/api/auth', authRoutes);
+
+// Health check route
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    message: 'Server is running!',
+    status: 'OK' 
+  });
 });
 
-
-
-
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
