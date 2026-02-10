@@ -1,63 +1,31 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-// Define user schema
+// User schema - ONLY authentication
 const userSchema = new mongoose.Schema({
-  firstName: {
-    type: String,
-    trim: true, 
-  }, 
-  lastName: {
-    type: String,
-    trim: true, 
-  }, 
-  paricipantType: {
-    type: String,
-    enum: ['IIIT-participant','Non-IIIT-participant' ], 
-    required: true, 
-  }, 
-  email:{
+  email: {
     type: String,
     required: true,
     unique: true,
     lowercase: true,
-    trim: true,
-  }, 
-  organizationName:{
-    type: String,
-    trim: true, 
-  }, 
+    trim: true
+  },
   password: {
     type: String,
     required: true,
-    minlength: 6,
+    minlength: 6
   },
-  contactNumber: {
+  role: {
     type: String,
-    trim: true,
+    enum: ['participant', 'organizer', 'admin'],
+    required: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   }
-}); 
-const organizerSchema = new mongoose.Schema({
-  organizerName: {
-    type: String,
-    trim: true, 
-    required: true,
-  }, 
-  description:{
-    type: String,
-    trim: true, 
-    required: true,
-  }, 
-  category: {
-    type: String,
-    required: true,
-}, 
-Contactemail: {
-  type: String, 
-  trim: true, 
-  lowercase: true, 
-  required: true,
-}, 
+}, {
+  timestamps: true
 });
 
 // Hash password before saving
@@ -73,7 +41,11 @@ userSchema.pre('save', async function(next) {
   } catch (error) {
     next(error);
   }
-}); 
+});
 
+// Method to compare passwords
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model('User', userSchema);
