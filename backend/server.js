@@ -22,13 +22,14 @@ const authRoutes = require('./routes/auth');
 // Use routes
 app.use('/api/auth', authRoutes);
 
-// Health check route
-app.get('/api/health', (req, res) => {
+// test route
+app.get('/api/test', (req, res) => {
   res.json({ 
     message: 'Server is running!',
     status: 'OK' 
   });
 });
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
