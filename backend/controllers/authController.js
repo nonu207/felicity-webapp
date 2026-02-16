@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const Participant = require('../models/Participant');
 const Organizer = require('../models/Organizer');
@@ -33,8 +32,8 @@ const registerParticipant = async (req, res) => {
     }
 
     // IIIT email validation
-    if (participantType === 'IIIT' && !email.endsWith('@iiit.ac.in')) {
-      return res.status(400).json({ message: 'IIIT participants must use their IIIT email (@iiit.ac.in)' });
+    if (participantType === 'IIIT' && !email.endsWith('iiit.ac.in')) {
+      return res.status(400).json({ message: 'IIIT participants must use their IIIT email (iiit.ac.in)' });
     }
 
     // Check if user already exists
@@ -86,29 +85,155 @@ const registerParticipant = async (req, res) => {
   }
 };
 
+// @desc    Block organizer self registration
+// @route   POST /api/auth/register/organizer
+// @access  Public
+const registerOrganizer = async (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Organizer self-registration is disabled. Please contact admin.'
+  });
+};
+
+
+
+
 const loginUser = async (req, res) => {
-    try{
-         const {email, password} = req.body; 
-         const user = await User.findOne({email}); 
-        
-         if(user && (await bcrypt.compare(password, user.password))){
-            res.status(200).json({
-                id: user._id, 
-                name: user.name, 
-                email: user.email, 
-                role: user.role,
-                token: generateToken(user._id), 
-            }); 
-         }
-         else{
-            res.status(401).json({message: 'invalid credentials'}); 
-         }
+  try {
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Please provide email and password' });
     }
-    catch{
-        res.status(500).json({ message: 'Server error', error: error.message });
+
+    // Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
-}; 
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        message: 'Account is not active. Please wait for admin approval or contact support.'
+      });
+    }
+
+    // Verify password using the model method
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Get user profile based on role
+    let profile = null;
+    if (user.role === 'participant') {
+      profile = await Participant.findOne({ userId: user._id });
+    } else if (user.role === 'organizer') {
+      profile = await Organizer.findOne({ userId: user._id });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive
+        },
+        profile,
+        token: generateToken(user._id)
+      }
+    });
+  } catch (error) {
+    console.error('Error in loginUser:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get current user
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get user profile based on role
+    let profile = null;
+    if (user.role === 'participant') {
+      profile = await Participant.findOne({ userId: user._id });
+    } else if (user.role === 'organizer') {
+      profile = await Organizer.findOne({ userId: user._id });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive
+        },
+        profile
+      }
+    });
+  } catch (error) {
+    console.error('Error in getMe:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Change current user password
+// @route   PATCH /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Please provide current and new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+
+    // Get user (req.user is set by authMiddleware)
+    // Note: User model should be imported at top of file
+    const user = await User.findById(req.user._id);
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid current password' });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+  } catch (error) {
+    console.error('Error in changePassword:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
-    registerParticipant, loginUser,
-}; 
-  
+  registerParticipant,
+  registerOrganizer,
+  loginUser,
+  getMe,
+  changePassword
+};
+
