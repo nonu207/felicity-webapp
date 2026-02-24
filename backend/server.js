@@ -54,7 +54,11 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'https://felicity-webapp-kfkz.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Serve uploaded files (payment proofs etc.)
