@@ -47,7 +47,7 @@ const AdminDashboardView = () => {
         catch { flash('Error deleting user'); }
     };
 
-    const handleToggleActive = async (userId, currentlyActive) => {
+    const _handleToggleActive = async (userId, currentlyActive) => {
         const action = currentlyActive ? 'deactivate' : 'activate';
         if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
         try { await adminAPI.toggleUserActive(userId); flash(`User ${action}d successfully`); loadAdminData(); }

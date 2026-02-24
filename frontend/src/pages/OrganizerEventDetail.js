@@ -79,7 +79,9 @@ const OrganizerEventDetail = () => {
     setRegsLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (event && event.status !== 'Draft') loadRegistrations();
   }, [event?.status]);
@@ -925,6 +927,7 @@ const MerchOrdersTab = ({ eventId }) => {
     setLoading(false);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [eventId]);
 
   const handleAction = async (orderId, action) => {

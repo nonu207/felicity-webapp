@@ -369,6 +369,7 @@ const DiscussionForum = ({ eventId }) => {
             socket.emit('leave_forum', eventId);
             socket.disconnect();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasAccess, eventId, fetchMessages]);
 
     // Recursively update a node in the tree

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { participantAPI, eventAPI } from '../services/api';
+import { eventAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const EventCard = ({ event, onClick, rank }) => {
@@ -89,6 +89,7 @@ const BrowseEvents = () => {
         fetchTrending();
     }, []);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchEvents(); }, [filter]);
 
     const fetchEvents = async () => {

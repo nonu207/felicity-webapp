@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const TABS = ['Upcoming', 'Normal', 'Merchandise', 'Completed', 'Cancelled'];
 
 const ParticipantDashboard = () => {
-    const { user, profile } = useAuth();
+    const { profile } = useAuth();
     const navigate = useNavigate();
     const [registrations, setRegistrations] = useState([]);
     const [loading, setLoading] = useState(true);

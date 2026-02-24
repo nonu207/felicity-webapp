@@ -34,6 +34,7 @@ const EventDetail = () => {
     // QR enlarge modal
     const [qrModal, setQrModal] = useState(false);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchEvent(); checkExisting(); }, [id]);
 
     const fetchEvent = async () => {
@@ -48,7 +49,7 @@ const EventDetail = () => {
         try {
             const res = await registrationAPI.checkRegistration(id);
             if (res.registered) setExistingReg(res.data);
-        } catch {}
+        } catch { }
     };
 
     const deadlinePassed = event && new Date(event.registrationDeadline) < new Date();

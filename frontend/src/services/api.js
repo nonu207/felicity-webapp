@@ -101,7 +101,7 @@ export const registrationAPI = {
       body: formData,
     }).then(async (res) => {
       const data = await res.json();
-      if (!res.ok) throw { response: { data } };
+      if (!res.ok) { const err = new Error(data.message || 'Upload failed'); err.response = { data }; throw err; }
       return data;
     });
   },
