@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventAPI, registrationAPI } from '../services/api';
 import DiscussionForum from '../components/DiscussionForum';
@@ -70,14 +70,14 @@ const OrganizerEventDetail = () => {
     }
   };
 
-  const loadRegistrations = async () => {
+  const loadRegistrations = useCallback(async () => {
     setRegsLoading(true);
     try {
       const res = await eventAPI.getEventRegistrations(id);
       setRegistrations(res.data || []);
     } catch { setRegistrations([]); }
     setRegsLoading(false);
-  };
+  }, [id]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [id]);
