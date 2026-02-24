@@ -59,16 +59,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
-app.options('/', cors({
-  origin: 'https://felicity-webapp-kfkz.vercel.app',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true
-}));
-app.options('/api/*', cors({
-  origin: 'https://felicity-webapp-kfkz.vercel.app',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true
-}));
 app.use(express.json());
 
 // Serve uploaded files (payment proofs etc.)
