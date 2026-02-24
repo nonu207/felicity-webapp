@@ -47,12 +47,7 @@ const AdminDashboardView = () => {
         catch { flash('Error deleting user'); }
     };
 
-    const _handleToggleActive = async (userId, currentlyActive) => {
-        const action = currentlyActive ? 'deactivate' : 'activate';
-        if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
-        try { await adminAPI.toggleUserActive(userId); flash(`User ${action}d successfully`); loadAdminData(); }
-        catch { flash(`Error ${action.slice(0, -1)}ing user`); }
-    };
+    // ...existing code...
 
     const handleApproveReset = async (userId) => {
         const comment = window.prompt('Add a comment for the organizer (optional):');

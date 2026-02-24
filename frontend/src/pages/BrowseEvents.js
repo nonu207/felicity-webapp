@@ -87,7 +87,7 @@ const BrowseEvents = () => {
             setTrendingLoading(false);
         };
         fetchTrending();
-    }, []);
+    }, [profile._id, user?.role]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchEvents(); }, [filter]);

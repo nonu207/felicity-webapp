@@ -81,10 +81,9 @@ const OrganizerEventDetail = () => {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [id]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (event && event.status !== 'Draft') loadRegistrations();
-  }, [event?.status]);
+  }, [event, loadRegistrations]);
 
   const flash = (msg, isError = false) => {
     if (isError) setError(msg); else setSuccess(msg);
