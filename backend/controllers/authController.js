@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Participant = require('../models/Participant');
 const Organizer = require('../models/Organizer');
+require("dotenv").config();
+const { sendPasswordResetEmail } = require('../utils/emailService');
+const { createNotification } = require('./notificationController');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -26,20 +30,49 @@ const registerParticipant = async (req, res) => {
       interests
     } = req.body;
 
-    // Validation
-    if (!firstName || !lastName || !email || !password || !participantType || !collegeName || !contactNumber) {
-      return res.status(400).json({ message: 'Please provide all required fields' });
+    // Validation — specific field-by-field messages
+    if (!firstName?.trim()) return res.status(400).json({ message: 'First name is required' });
+    if (!lastName?.trim())  return res.status(400).json({ message: 'Last name is required' });
+    if (!email?.trim())     return res.status(400).json({ message: 'Email address is required' });
+    if (!password)          return res.status(400).json({ message: 'Password is required' });
+    if (!participantType)   return res.status(400).json({ message: 'Participant type is required' });
+    if (!collegeName?.trim() && !email?.toLowerCase().endsWith('iiit.ac.in')) return res.status(400).json({ message: 'College / institution name is required' });
+    if (!contactNumber?.trim()) return res.status(400).json({ message: 'Contact number is required' });
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Please enter a valid email address' });
     }
 
+    // Password strength
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    // Phone format validation
+    const phoneRegex = /^\+?[\d\s\-()]{7,15}$/;
+    if (!phoneRegex.test(contactNumber)) {
+      return res.status(400).json({ message: 'Please enter a valid contact number (7-15 digits)' });
+    }
+
+    // Auto-detect IIIT email: override type & college for @iiit.ac.in emails
+    const isIIITemail = email.toLowerCase().endsWith('iiit.ac.in');
+    const finalParticipantType = isIIITemail ? 'IIIT' : participantType;
+    const finalCollegeName    = isIIITemail ? 'IIIT Hyderabad' : collegeName;
+
     // IIIT email validation
-    if (participantType === 'IIIT' && !email.endsWith('iiit.ac.in')) {
+    if (finalParticipantType === 'IIIT' && !isIIITemail) {
       return res.status(400).json({ message: 'IIIT participants must use their IIIT email (iiit.ac.in)' });
     }
 
     // Check if user already exists
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: email.toLowerCase().trim() });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists with this email' });
+      if (userExists.role !== 'participant') {
+        return res.status(400).json({ message: `This email is already registered as ${userExists.role === 'admin' ? 'an admin' : 'an organizer'}. The same email cannot be used for multiple roles.` });
+      }
+      return res.status(400).json({ message: 'An account already exists with this email address. Please login instead or use a different email.' });
     }
 
     // Create User
@@ -54,8 +87,8 @@ const registerParticipant = async (req, res) => {
       userId: user._id,
       firstName,
       lastName,
-      participantType,
-      collegeName,
+      participantType: finalParticipantType,
+      collegeName: finalCollegeName,
       contactNumber,
       interests: interests || [],
       profileComplete: true
@@ -103,27 +136,30 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     // Validation
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Please enter your email address' });
+    }
+    if (!password) {
+      return res.status(400).json({ message: 'Please enter your password' });
     }
 
-    // Check if user exists
-    const user = await User.findOne({ email });
+    // Check if user exists (normalize email to lowercase to match stored value)
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'No account found with this email address. Please check your email or register for a new account.' });
     }
 
     // Check if user is active
     if (!user.isActive) {
-      return res.status(401).json({
-        message: 'Account is not active. Please wait for admin approval or contact support.'
+      return res.status(403).json({
+        message: 'Your account has been deactivated by an administrator. Please contact support for assistance.'
       });
     }
 
     // Verify password using the model method
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Incorrect password. Please try again or use "Forgot password" to reset it.' });
     }
 
     // Get user profile based on role
@@ -195,6 +231,11 @@ const getMe = async (req, res) => {
 // @access  Private
 const changePassword = async (req, res) => {
   try {
+    // Organizers must use the admin-approval password reset flow
+    if (req.user.role === 'organizer') {
+      return res.status(403).json({ message: 'Organizers cannot change passwords directly. Please request a password reset from admin.' });
+    }
+
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
@@ -206,7 +247,6 @@ const changePassword = async (req, res) => {
     }
 
     // Get user (req.user is set by authMiddleware)
-    // Note: User model should be imported at top of file
     const user = await User.findById(req.user._id);
 
     // Verify current password
@@ -229,11 +269,96 @@ const changePassword = async (req, res) => {
   }
 };
 
+// @desc    Request a password reset email
+// @route   POST /api/auth/forgot-password
+// @access  Public
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Please provide your email' });
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account found with that email address.' });
+    }
+
+    // Generate a random token and store its hash in the DB
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await sendPasswordResetEmail(email, rawToken);
+    } catch (emailError) {
+      // Roll back the token if the email fails to send
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await user.save({ validateBeforeSave: false });
+      console.error('Email send failed:', emailError);
+      return res.status(500).json({ message: 'Failed to send reset email. Please try again.' });
+    }
+
+    // In-app notification
+    await createNotification({
+      userId: user._id,
+      type: 'password_reset_requested',
+      title: 'Password Reset Requested',
+      message: 'A password reset link has been sent to your email. It expires in 1 hour.',
+    });
+
+    res.status(200).json({ success: true, message: 'If an account is registered under that email, check your inbox for a reset link.' });
+  } catch (error) {
+    console.error('Error in forgotPassword:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Reset password using token from email link
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    // Hash the token coming in from the URL and compare to stored hash
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() } // must not be expired
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Reset link is invalid or has expired.' });
+    }
+
+    // Set new password and clear reset fields
+    user.password = newPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password reset successful. You can now log in.' });
+  } catch (error) {
+    console.error('Error in resetPassword:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   registerParticipant,
   registerOrganizer,
   loginUser,
   getMe,
-  changePassword
+  changePassword,
+  forgotPassword,
+  resetPassword
 };
-

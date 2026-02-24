@@ -1,5 +1,4 @@
-const mongoose = require('mongoose'); 
-const bcrypt = require('bcrypt');
+const mongoose = require('mongoose');
 
 const organizerSchema = new mongoose.Schema({
     userId: {
@@ -7,30 +6,49 @@ const organizerSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
         unique: true
-    }, 
+    },
     organizerName: {
-        type: String, 
-        required: true, 
+        type: String,
+        required: true,
         trim: true
-    }, 
+    },
     organizerDescription: {
-        type: String, 
-        required: true, 
+        type: String,
+        required: true,
         trim: true
-    }, 
+    },
     organizerCategory: {
-        type: String, 
-        required: true, 
+        type: String,
+        required: true,
         trim: true
-    }, 
+    },
     contactEmail: {
-        type: String, 
-        required: true, 
-        lowercase: true, 
-        unique: true
-    }},
-    {
-        timestamps: true
-    }); 
+        type: String,
+        required: true,
+        lowercase: true,
+    },
+    // Participants who follow this organizer
+    // Stored as an array of Participant _id references
+    followedBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Participant'
+    }],
 
-    module.exports = mongoose.model('Organizer', organizerSchema); 
+    // Discord webhook URL for auto-posting new events (spec §10.5)
+    discordWebhookUrl: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
+    // Whether the account is archived/removed by admin
+    isArchived: {
+        type: Boolean,
+        default: false
+    }
+
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('Organizer', organizerSchema);

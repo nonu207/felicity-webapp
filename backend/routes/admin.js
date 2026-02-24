@@ -8,20 +8,29 @@ const {
   getAllOrganizers,
   getAllParticipants,
   deleteUser,
-  createOrganizer
+  toggleUserActive,
+  createOrganizer,
+  resetUserPassword,
+  getPendingPasswordResets,
+  approvePasswordReset,
+  rejectPasswordReset,
 } = require('../controllers/adminController');
 
-// Public route - create admin (only if none exists)
+// Public — create initial admin
 router.post('/create', createAdmin);
 
-const { resetUserPassword } = require('../controllers/adminController');
-router.patch('/user/:id/reset-password', protect, roleMiddleware(['admin']), resetUserPassword);
+// All routes below require admin JWT
+router.use(protect, roleMiddleware(['admin']));
 
-// Protected admin routes
-router.post('/organizer/create', protect, roleMiddleware(['admin']), createOrganizer);
-router.patch('/organizer/:id/approve', protect, roleMiddleware(['admin']), approveOrganizer);
-router.get('/organizers', protect, roleMiddleware(['admin']), getAllOrganizers);
-router.get('/participants', protect, roleMiddleware(['admin']), getAllParticipants);
-router.delete('/user/:id', protect, roleMiddleware(['admin']), deleteUser);
+router.get('/organizers', getAllOrganizers);
+router.get('/participants', getAllParticipants);
+router.patch('/organizer/:id/approve', approveOrganizer);
+router.delete('/user/:id', deleteUser);
+router.patch('/user/:id/toggle-active', toggleUserActive);
+router.post('/organizer/create', createOrganizer);
+router.patch('/user/:id/reset-password', resetUserPassword);
+router.get('/password-reset-requests', getPendingPasswordResets);
+router.patch('/password-reset-requests/:userId/approve', approvePasswordReset);
+router.patch('/password-reset-requests/:userId/reject', rejectPasswordReset);
 
 module.exports = router;
